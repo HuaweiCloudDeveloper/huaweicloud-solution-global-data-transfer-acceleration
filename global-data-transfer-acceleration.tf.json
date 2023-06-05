@@ -1,0 +1,112 @@
+{
+    "terraform": {
+        "required_providers": [
+            {
+                "huaweicloud": {
+                    "source": "huawei.com/provider/huaweicloud",
+                    "version": ">=1.42.0"
+                }
+            }
+        ]
+    },
+    "provider": {
+        "huaweicloud": {
+            "cloud": "myhuaweicloud.com",
+            "endpoints": {
+                "iam": "iam.ap-southeast-3.myhuaweicloud.com",
+                "dns": "dns.ap-southeast-3.myhuaweicloud.com",
+                "bss": "bss.myhuaweicloud.com"
+            },
+            "insecure": true,
+            "region": "ap-southeast-3",
+            "auth_url": "https://iam.ap-southeast-3.myhuaweicloud.com/v3"
+        }
+    },
+    "variable": {
+        "accelerate_domain": {
+            "default": "",
+            "description": "Specifies the domain name used to access the application to accelerated. The domain name must have been licensed by the Ministry of Industry and Information Technology (MIIT). You are advised to use a level-2 domain name of the public domain specified by public_zone_domain. A domain name must consist of one or more labels, representing domains at different levels. These labels are concatenated and delimited by dots (.). A label consists of letters A to Z, or a to z, not case sensitive, digits 0 to 9, and hyphens (-). The length of a domain name is within 75 characters. Do not start or end a domain name with hyphens (-). Example: download.game-apk1.com.",
+            "type": "string",
+            "nullable": "false",
+            "validation": {
+                "condition": "${length(regexall(\"^(\\\\*\\\\.)?([a-zA-Z0-9]([a-zA-Z0-9-]{0,60}[a-zA-Z0-9])?\\\\.){1,}[a-zA-Z]{2,26}$\",var.accelerate_domain))>0}",
+                "error_message": "Invalid input. Please re-enter."
+            }
+        },
+        "public_zone_domain": {
+            "default": "",
+            "description": "Specifies the public domain used by the user service system to provide services that can be accessed frm the Internet. A domain name must consist of one or more labels, representing domains at different levels. These labels are concatenated and delimited by dots (.). A label consists of letters A to Z, or a to z, not case sensitive, digits 0 to 9, and hyphens (-). The length of a domain name is within 75 characters. Do not start or end a domain name with hyphens (-). Example: game-apk1.com.",
+            "type": "string",
+            "nullable": "false",
+            "validation": {
+                "condition": "${length(regexall(\"^(\\\\*\\\\.)?([a-zA-Z0-9]([a-zA-Z0-9-]{0,60}[a-zA-Z0-9])?\\\\.){1,}[a-zA-Z]{2,26}$\",var.public_zone_domain))>0}",
+                "error_message": "Invalid input. Please re-enter."
+            }
+        },
+        "service_area": {
+            "default": "outside_mainland_china",
+            "description": "Specifies the service area. The default value is outside_mainland_china. You can select mainland_china (areas in the Chinese mainland), outside_mainland_china (areas outside the Chinese mainland), or global (global areas).",
+            "type": "string",
+            "nullable": "false",
+            "validation": {
+                "condition": "${contains([\"mainland_china\",\"outside_mainland_china\",\"global\"], var.service_area)}",
+                "error_message": "Invalid input, please re-enter."
+            }
+        },
+        "origin_server_address": {
+            "default": "",
+            "description": "Specifies the origin server address. The address type can be IP address or domain name. If the origin server address type is IP address, only IPv4 addresses are supported. If there are multiple IP addresses, multiple objects must be specified to pass these addresses respectively, and the values of the parameters except the IP address in these objects must be the same. Up to 15 IP addresses can be specified for the primary or standby origin server. If the origin server address type is domain name, only one domain name is supported. The address type can be either IP address or domain name.",
+            "type": "string",
+            "nullable": "false",
+            "validation": {
+                "condition": "${length(regexall(\"^(((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\\\\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?);?){1,15}$\",var.origin_server_address))>0}",
+                "error_message": "Invalid input. Please re-enter."
+            }
+        },
+        "origin_server_type": {
+            "default": "ipaddr",
+            "description": "Specifies the address type of the origin server. The default value is ipaddr. You can select either ipaddr (IP address) or Domain (domain name)",
+            "type": "string",
+            "nullable": "false",
+            "validation": {
+                "condition": "${contains([\"ipaddr\",\"domain\"], var.origin_server_type)}",
+                "error_message": "Invalid input, please re-enter."
+            }
+        }
+    },
+    "resource": {
+        "huaweicloud_cdn_domain": {
+            "domain": {
+                "name": "${var.accelerate_domain}",
+                "service_area": "${var.service_area}",
+                "sources": [
+                    {
+                        "active": 1,
+                        "origin": "${var.origin_server_address}",
+                        "origin_type": "${var.origin_server_type}"
+                    }
+                ],
+                "type": "wholeSite"
+            }
+        },
+        "huaweicloud_dns_recordset": {
+            "recordset": {
+                "description": "record set",
+                "name": "${var.accelerate_domain}",
+                "records": [
+                    "${huaweicloud_cdn_domain.domain.cname}"
+                ],
+                "ttl": 3000,
+                "type": "CNAME",
+                "zone_id": "${huaweicloud_dns_zone.zone.id}"
+            }
+        },
+        "huaweicloud_dns_zone": {
+            "zone": {
+                "name": "${var.public_zone_domain}",
+                "ttl": 3000,
+                "zone_type": "public"
+            }
+        }
+    }
+}
